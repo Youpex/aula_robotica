@@ -1,10 +1,9 @@
-index.html 
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crazy Car Racing 2D</title>
+    <title>Crazy Car Racing 2D - INFINITO</title>
     <style>
         body {
             margin: 0;
@@ -94,18 +93,22 @@ index.html
         <div id="ui">
             <div>Pontuação: <span id="score">0</span></div>
             <div>Velocidade: <span id="speed">5</span></div>
+            <div>Distância: <span id="distance">0</span>m</div>
         </div>
 
         <div id="startScreen">
-            <h1>🏁 CRAZY CAR RACING 2D</h1>
-            <p style="color: #4CAF50;">🚗 Use A e D para mover o CARRO VERDE CONVERSÍVEL</p>
-            <p style="color: #ff4444;">🚗 Desvie dos CARROS VERMELHOS (vindo no sentido contrário)</p>
+            <h1>🏁 CRAZY CAR RACING 2D - INFINITO</h1>
+            <p style="color: #4CAF50;">🚗 Use A e D para mover ESQUERDA/DIREITA</p>
+            <p style="color: #4CAF50;">⬆️ Use W para ACELERAR para CIMA</p>
+            <p style="color: #ff4444;">🚗 Desvie dos CARROS VERMELHOS</p>
+            <p style="color: #f1c40f;">⭐ Quanto mais longe, mais pontos!</p>
             <button onclick="startGame()">▶ COMEÇAR</button>
         </div>
 
         <div id="gameOver">
             <h1>🏁 GAME OVER</h1>
             <p>Pontuação: <span id="finalScore" style="color: #f1c40f; font-size: 30px;">0</span></p>
+            <p>Distância: <span id="finalDistance" style="color: #4CAF50;">0</span>m</p>
             <button onclick="resetGame()">↻ JOGAR NOVAMENTE</button>
         </div>
     </div>
@@ -120,17 +123,20 @@ index.html
         let speed = 5;
         let frameCount = 0;
         let roadOffset = 0;
+        let distance = 0;
+        let worldY = 0; // Posição do mundo (infinito)
         
-        // CARRO DO JOGADOR - VERDE CONVERSÍVEL (ANDANDO PRA CIMA)
+        // CARRO DO JOGADOR - VERDE CONVERSÍVEL
         let playerCar = {
             x: 370,
             y: 520,
             width: 50,
             height: 65,
-            speed: 25
+            speed: 25,
+            baseY: 520
         };
         
-        // Carros adversários - VERMELHOS (VINDO NO SENTIDO CONTRÁRIO)
+        // Carros adversários - VERMELHOS
         let enemyCars = [];
         const enemyColors = ['#ff4444', '#ff8888', '#ff0000', '#cc3333'];
         
@@ -151,35 +157,38 @@ index.html
         // Controles
         let leftPressed = false;
         let rightPressed = false;
+        let upPressed = false;
         
         document.addEventListener('keydown', (e) => {
             if (e.key === 'a' || e.key === 'A') leftPressed = true;
             if (e.key === 'd' || e.key === 'D') rightPressed = true;
+            if (e.key === 'w' || e.key === 'W') upPressed = true;
         });
         
         document.addEventListener('keyup', (e) => {
             if (e.key === 'a' || e.key === 'A') leftPressed = false;
             if (e.key === 'd' || e.key === 'D') rightPressed = false;
+            if (e.key === 'w' || e.key === 'W') upPressed = false;
         });
         
-        // ESTRADA
+        // ESTRADA INFINITA
         function drawRoad() {
-            // Asfalto
+            // Asfalto base
             ctx.fillStyle = '#2c3e50';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Faixas laterais BRANCAS
+            // Faixas laterais BRANCAS (efeito infinito)
             ctx.fillStyle = '#ecf0f1';
-            for (let i = 0; i < 15; i++) {
-                let y = (i * 50 + roadOffset) % canvas.height;
+            for (let i = 0; i < 20; i++) {
+                let y = (i * 50 + roadOffset + worldY) % (canvas.height + 100) - 50;
                 ctx.fillRect(ROAD_LEFT_LIMIT - 3, y, 6, 30);
                 ctx.fillRect(ROAD_RIGHT_LIMIT - 3, y, 6, 30);
             }
             
             // Faixas divisórias AMARELAS
             ctx.fillStyle = '#f1c40f';
-            for (let i = 0; i < 15; i++) {
-                let y = (i * 70 + roadOffset) % canvas.height;
+            for (let i = 0; i < 20; i++) {
+                let y = (i * 70 + roadOffset + worldY) % (canvas.height + 100) - 50;
                 ctx.fillRect(200, y, 6, 35);
                 ctx.fillRect(360, y, 6, 35);
                 ctx.fillRect(520, y, 6, 35);
@@ -190,24 +199,31 @@ index.html
             ctx.fillStyle = '#27ae60';
             ctx.fillRect(0, 0, ROAD_LEFT_LIMIT - 10, canvas.height);
             ctx.fillRect(ROAD_RIGHT_LIMIT + 10, 0, 50, canvas.height);
+            
+            // Linha de chegada infinita (marcadores de distância)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            for (let i = 0; i < 10; i++) {
+                let y = (i * 100 + worldY * 2) % canvas.height;
+                ctx.fillRect(ROAD_LEFT_LIMIT, y, ROAD_RIGHT_LIMIT - ROAD_LEFT_LIMIT, 2);
+            }
         }
         
-        // 🟢 CARRO VERDE CONVERSÍVEL - ANDANDO PRA CIMA (faróis na frente)
+        // CARRO VERDE CONVERSÍVEL
         function drawPlayerCar() {
             // SOMBRA
             ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             ctx.fillRect(playerCar.x - 2, playerCar.y + playerCar.height, playerCar.width + 4, 4);
             
-            // 🟢 CORPO DO CARRO
+            // CORPO DO CARRO
             ctx.fillStyle = '#00cc00';
             ctx.fillRect(playerCar.x, playerCar.y, playerCar.width, playerCar.height);
             
-            // 🟨 BANCO DO CONVERSÍVEL
+            // BANCO DO CONVERSÍVEL
             ctx.fillStyle = '#8B4513';
             ctx.fillRect(playerCar.x + 12, playerCar.y + 15, 8, 12);
             ctx.fillRect(playerCar.x + playerCar.width - 20, playerCar.y + 15, 8, 12);
             
-            // 👤 PILOTO
+            // PILOTO
             ctx.fillStyle = '#FFD700';
             ctx.beginPath();
             ctx.arc(playerCar.x + 25, playerCar.y + 18, 6, 0, Math.PI * 2);
@@ -217,7 +233,7 @@ index.html
             ctx.fillStyle = '#3498db';
             ctx.fillRect(playerCar.x + 18, playerCar.y - 2, 14, 6);
             
-            // FARÓIS DIANTEIROS (AMARELOS) - NA FRENTE (PARTE DE BAIXO DO CARRO)
+            // FARÓIS DIANTEIROS
             ctx.fillStyle = '#ffff00';
             ctx.fillRect(playerCar.x + 2, playerCar.y + playerCar.height - 6, 4, 4);
             ctx.fillRect(playerCar.x + playerCar.width - 6, playerCar.y + playerCar.height - 6, 4, 4);
@@ -230,66 +246,121 @@ index.html
             ctx.fillRect(playerCar.x + playerCar.width - 2, playerCar.y + playerCar.height - 24, 6, 12);
         }
         
-        // 🚗 CARROS INIMIGOS - VERMELHOS (VINDO NO SENTIDO CONTRÁRIO)
-        // Faróis na PARTE DE CIMA (pois estão descendo)
+        // CARROS INIMIGOS
         function createEnemyCar() {
             const laneIndex = Math.floor(Math.random() * LANES.length);
             const laneX = LANES[laneIndex].x;
             const carX = laneX - CAR_WIDTH/2;
             
+            // Gera carros em diferentes alturas, considerando o mundo infinito
+            let startY = -CAR_HEIGHT - (worldY % 300);
+            if (startY < -CAR_HEIGHT * 2) startY = -CAR_HEIGHT;
+            
             enemyCars.push({
                 x: carX,
-                y: -CAR_HEIGHT,
+                y: startY,
                 width: CAR_WIDTH,
                 height: CAR_HEIGHT,
                 color: enemyColors[Math.floor(Math.random() * enemyColors.length)],
-                speed: speed + Math.floor(Math.random() * 3) + 2
+                speed: speed + Math.floor(Math.random() * 4) + 3,
+                lane: laneIndex
             });
         }
         
         function drawEnemyCars() {
             enemyCars.forEach(car => {
-                // Corpo do carro vermelho
+                // Corpo do carro
                 ctx.fillStyle = car.color;
                 ctx.fillRect(car.x, car.y, car.width, car.height);
                 
-                // Janela AZUL (na parte de baixo do carro, pois estão descendo)
+                // JANELA (em cima)
                 ctx.fillStyle = '#87CEEB';
-                ctx.fillRect(car.x + 8, car.y + car.height - 30, car.width - 16, 18);
+                ctx.fillRect(car.x + 8, car.y + 8, car.width - 16, 18);
                 
-                // Rodas PRETAS
+                // Rodas
                 ctx.fillStyle = '#000000';
                 ctx.fillRect(car.x - 4, car.y + 12, 6, 12);
                 ctx.fillRect(car.x + car.width - 2, car.y + 12, 6, 12);
                 ctx.fillRect(car.x - 4, car.y + car.height - 24, 6, 12);
                 ctx.fillRect(car.x + car.width - 2, car.y + car.height - 24, 6, 12);
                 
-                // FARÓIS DIANTEIROS (AMARELOS) - Na PARTE DE CIMA (estão descendo)
+                // FARÓIS DIANTEIROS (em baixo)
                 ctx.fillStyle = '#ffff00';
-                ctx.fillRect(car.x + 2, car.y + 2, 4, 4);
-                ctx.fillRect(car.x + car.width - 6, car.y + 2, 4, 4);
-                
-                // SOMBRA
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                ctx.fillRect(car.x - 2, car.y + car.height, car.width + 4, 4);
+                ctx.fillRect(car.x + 2, car.y + car.height - 6, 4, 4);
+                ctx.fillRect(car.x + car.width - 6, car.y + car.height - 6, 4, 4);
             });
         }
         
         function updateEnemyCars() {
             enemyCars.forEach((car, index) => {
+                // Carros descem normalmente
                 car.y += car.speed;
                 
-                if (car.y > canvas.height) {
+                // Remove carros que passaram da tela
+                if (car.y > canvas.height + 100) {
                     enemyCars.splice(index, 1);
                     score += 10;
                     document.getElementById('score').textContent = score;
-                    
-                    if (score % 100 === 0) {
-                        speed += 0.5;
-                        document.getElementById('speed').textContent = speed.toFixed(1);
-                    }
                 }
             });
+        }
+        
+        // MOVIMENTAÇÃO DO CARRO (COM W PARA CIMA)
+        function movePlayerCar() {
+            // Movimento lateral
+            if (leftPressed && playerCar.x > ROAD_LEFT_LIMIT) {
+                playerCar.x -= playerCar.speed;
+            }
+            if (rightPressed && playerCar.x + playerCar.width < ROAD_RIGHT_LIMIT) {
+                playerCar.x += playerCar.speed;
+            }
+            
+            // Movimento para CIMA (W) - ESSE É O CORAÇÃO DO JOGO INFINITO
+            if (upPressed) {
+                worldY += playerCar.speed * 1.5; // O mundo desce, dando sensação que o carro sobe
+                distance += 1;
+                document.getElementById('distance').textContent = distance;
+                
+                // Aumenta pontuação conforme sobe
+                if (distance % 10 === 0) {
+                    score += 5;
+                    document.getElementById('score').textContent = score;
+                }
+                
+                // Aumenta dificuldade conforme sobe
+                if (distance % 50 === 0) {
+                    speed += 0.2;
+                    document.getElementById('speed').textContent = speed.toFixed(1);
+                }
+            }
+            
+            // Limites laterais
+            if (playerCar.x < ROAD_LEFT_LIMIT) playerCar.x = ROAD_LEFT_LIMIT;
+            if (playerCar.x + playerCar.width > ROAD_RIGHT_LIMIT) playerCar.x = ROAD_RIGHT_LIMIT - playerCar.width;
+            
+            // Carro sempre na mesma posição Y (só o mundo se move)
+            playerCar.y = playerCar.baseY;
+        }
+        
+        // GERADOR INFINITO DE CARROS
+        function generateInfiniteCars() {
+            // Gera carros baseado na distância percorrida
+            let spawnRate = Math.max(20, 30 - Math.floor(distance / 50));
+            
+            if (frameCount % spawnRate === 0) {
+                // Gera de 1 a 3 carros por vez
+                let carCount = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < carCount; i++) {
+                    setTimeout(() => {
+                        if (gameRunning) createEnemyCar();
+                    }, i * 100);
+                }
+            }
+            
+            // Gera carros adicionais quando o jogador está subindo rápido
+            if (upPressed && frameCount % 15 === 0 && Math.random() > 0.5) {
+                createEnemyCar();
+            }
         }
         
         function checkCollision() {
@@ -299,18 +370,6 @@ index.html
                         playerCar.y < car.y + car.height - 5 &&
                         playerCar.y + playerCar.height > car.y + 5);
             });
-        }
-        
-        function movePlayerCar() {
-            if (leftPressed && playerCar.x > ROAD_LEFT_LIMIT) {
-                playerCar.x -= playerCar.speed;
-            }
-            if (rightPressed && playerCar.x + playerCar.width < ROAD_RIGHT_LIMIT) {
-                playerCar.x += playerCar.speed;
-            }
-            
-            if (playerCar.x < ROAD_LEFT_LIMIT) playerCar.x = ROAD_LEFT_LIMIT;
-            if (playerCar.x + playerCar.width > ROAD_RIGHT_LIMIT) playerCar.x = ROAD_RIGHT_LIMIT - playerCar.width;
         }
         
         function gameLoop() {
@@ -326,9 +385,9 @@ index.html
             
             movePlayerCar();
             updateEnemyCars();
+            generateInfiniteCars();
             
             frameCount++;
-            if (frameCount % 28 === 0) createEnemyCar();
             
             if (checkCollision()) {
                 gameOver();
@@ -349,20 +408,26 @@ index.html
         function resetGameState() {
             playerCar.x = 370;
             playerCar.y = 520;
+            playerCar.baseY = 520;
             enemyCars = [];
             score = 0;
             speed = 5;
+            distance = 0;
+            worldY = 0;
             frameCount = 0;
             roadOffset = 0;
             leftPressed = false;
             rightPressed = false;
+            upPressed = false;
             document.getElementById('score').textContent = '0';
             document.getElementById('speed').textContent = '5';
+            document.getElementById('distance').textContent = '0';
         }
         
         function gameOver() {
             gameRunning = false;
             document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalDistance').textContent = distance;
             document.getElementById('gameOver').style.display = 'block';
         }
         
